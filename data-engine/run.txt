@@ -1,0 +1,8 @@
+pip install -r requirements.txt
+
+psycopg2-binary: The adapter that allows your Python script to communicate with the PostgreSQL database. 
+(The random, time, and datetime modules you used in the script are built directly into Python, so they don't need to be listed here).
+
+python-dotenv: Included because the original file structure had a .env file. 
+If you decide to move your database credentials (your_password, your_username) out of the ingestor.py code and into a secure .env file, 
+this library allows Python to read them.
