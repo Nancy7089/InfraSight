@@ -1,95 +1,206 @@
-1. Why This Project? (The Business Value)
+# InfraSight
+
+![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![License](https://img.shields.io/badge/license-MIT-green.svg)
+![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)
+
+## Overview
 In modern enterprise environments, companies rely on hundreds of microservices. When a system goes down or slows down, the business loses money, customers, and reputation.
 
-InfraSight solves a critical business problem: System Visibility.
+InfraSight solves a critical business problem: **System Visibility**. It is a full-stack telemetry dashboard that visualizes server errors and latency spikes in real-time, allowing engineering teams to detect and fix bottlenecks before they cause a complete outage. By combining a Python-based data engine for generating and ingesting network telemetry with a fast Node.js API and a responsive React frontend, InfraSight provides clear insights into SLA compliance and system health.
 
-Proactive Incident Management: Instead of waiting for users to complain on Twitter that a website is down, InfraSight visualizes 5xx server errors and latency spikes in real-time. This allows engineering teams to detect and fix bottlenecks before they cause a complete outage.
+## Key Features
+*   **Proactive Incident Management:** Visualizes 5xx server errors and latency spikes in real-time.
+*   **SLA Monitoring:** Tracks exact average latency and total requests per endpoint for SLA compliance.
+*   **Resource Allocation Insights:** Identifies high-traffic endpoints to optimize scaling and reduce costs.
+*   **High-Performance Architecture:** Uses Python for heavy-lifting data ingestion and Node.js for non-blocking, fast data retrieval.
+*   **Interactive Dashboard:** React-based frontend using Recharts for live time-series graphs and summary tables.
 
-SLA Monitoring: Businesses have Service Level Agreements (SLAs) promising certain speeds and uptimes. InfraSight’s summary table tracks the exact average latency and total requests per endpoint, providing hard data to prove SLA compliance.
+## System Architecture
 
-Resource Allocation: By identifying which endpoints handle the most traffic, businesses know exactly where to allocate more server resources (scaling) and where they can cut costs.
+InfraSight utilizes a classic microservice pattern combining Python, Node.js, PostgreSQL, and React. 
 
+*   **Python (The Data Engine):** Acts as a background worker. It handles continuous generation of simulated network traffic and ingests telemetry data into the database.
+*   **Node.js (The API Server):** An Express.js REST API that handles thousands of lightweight read requests, processing advanced SQL queries (aggregation, filtering) to serve real-time analytics to the dashboard.
+*   **PostgreSQL (Database):** Stores the raw telemetry logs with optimized indexes for hyper-fast time-based and endpoint-based retrieval.
+*   **React (Frontend):** Fetches the JSON data from the Node.js API and visualizes it using Recharts and dynamic HTML tables.
 
+### Architecture Diagram
 
-2. Why Python and Node.js Together?
-Using two different backend languages is a classic microservice pattern. It demonstrates an understanding of choosing the "right tool for the right job."
+```mermaid
+flowchart TD
+    subgraph Data Engine
+        Generator[Python: generator.py] -->|Simulates Traffic| Ingestor[Python: ingestor.py]
+    end
 
-Python (The Data Engine): Python is the industry standard for Data Engineering, ETL (Extract, Transform, Load) pipelines, and machine learning. In this project, Python acts as the heavy-lifting worker script. It handles the continuous generation, transformation, and ingestion of data into the database. If you ever wanted to add predictive AI to forecast network crashes, Python makes that seamless.
+    subgraph Database
+        Ingestor -->|INSERT SQL| DB[(PostgreSQL: api_logs)]
+    end
 
-Node.js (The API Server): Node.js is built on an event-driven, non-blocking I/O model. This makes it incredibly efficient at handling thousands of simultaneous, lightweight read requests. While Python handles writing heavy data in the background, Node.js serves the real-time analytics to the React dashboard instantly without getting blocked by the database writes.
+    subgraph Backend API
+        DB -->|SELECT/GROUP BY| NodeAPI[Node.js: Express Server]
+    end
 
+    subgraph Frontend Dashboard
+        NodeAPI -->|JSON/HTTP GET| ReactApp[React: App.jsx]
+        ReactApp -->|Renders| Chart[Recharts: MetricsChart]
+        ReactApp -->|Renders| Table[Summary Table]
+    end
+```
 
+## Directory Structure
+```
+.
+├── backend/                  # Node.js API server
+│   ├── config/               # Database connection config
+│   ├── routes/               # API endpoints (analytics.js)
+│   ├── server.js             # Express app entry point
+│   └── package.json          # Node dependencies
+├── data-engine/              # Python data generation & ingestion
+│   ├── generator.py          # Network traffic simulator
+│   ├── ingestor.py           # Database writing logic
+│   ├── requirements.txt      # Python dependencies
+│   └── .env                  # DB credentials
+├── database/                 # Database structure
+│   └── schema.sql            # PostgreSQL table schema and indexes
+└── frontend/                 # React frontend application
+    ├── src/                  # React source code (App, API fetches, Charts)
+    ├── index.html            # Entry HTML file
+    └── package.json          # Frontend dependencies
+```
 
-3. Detailed Architecture Flow
-Here is the step-by-step journey of a single piece of data through your system:
+## Prerequisites
+*   **Node.js:** v18+ 
+*   **Python:** 3.8+
+*   **PostgreSQL:** 13+
+*   **npm:** v9+ or **yarn**
 
-Generation (Python): The Python script generates a simulated network event (e.g., a user hitting the /api/payment endpoint). It calculates a fake latency and status code.
+## Installation
 
-Ingestion (Python -> DB): Python executes an INSERT SQL command, pushing this log into the PostgreSQL api_logs table.
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Shivamrana0309/InfraSight.git
+   cd InfraSight
+   ```
 
-Storage & Indexing (PostgreSQL): The database stores the row. Because we added indexes to the timestamp and endpoint columns, the database automatically organizes this data for hyper-fast retrieval.
+2. **Database Setup:**
+   Make sure PostgreSQL is running, then create the database and tables:
+   ```bash
+   psql -U postgres -c "CREATE DATABASE infrasight;"
+   psql -U postgres -d infrasight -f database/schema.sql
+   ```
 
-Aggregation (Node.js <- DB): Every 5 seconds, the Node.js server receives a request from the frontend. It runs advanced SQL queries (GROUP BY, DATE_TRUNC, AVG, SUM) to crush thousands of raw logs into a few clean metrics.
+3. **Data Engine (Python):**
+   ```bash
+   cd data-engine
+   python3 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+   cd ..
+   ```
 
-Delivery (Node.js -> React): Node.js sends this calculated data via a JSON API response over HTTP.
+4. **Backend (Node.js):**
+   ```bash
+   cd backend
+   npm install
+   cd ..
+   ```
 
-Visualization (React): The React frontend receives the JSON. Recharts maps the time-series data to the X and Y axes of the line chart, and the table maps the summary data, instantly updating the UI.
+5. **Frontend (React):**
+   ```bash
+   cd frontend
+   npm install
+   cd ..
+   ```
 
+## Configuration
+You need to set up environment variables for both the backend and the data engine.
 
+1. **Backend Configuration:**
+   Create a `.env` file in the `backend/` directory:
+   ```env
+   DB_USER=postgres
+   DB_PASSWORD=your_password
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_NAME=infrasight
+   PORT=5001
+   ```
 
-4. File Directory & Core Functions Breakdown
-🗄️ Database Tier
-database/schema.sql
+2. **Data Engine Configuration:**
+   Create a `.env` file in the `data-engine/` directory:
+   ```env
+   DB_USER=postgres
+   DB_PASSWORD=your_password
+   DB_HOST=localhost
+   DB_PORT=5432
+   DB_NAME=infrasight
+   ```
 
-Role: The blueprint of your data structure.
+## Usage/Running the App
+To run the full stack, you will need three terminal windows.
 
-Main Commands: CREATE TABLE (defines columns like response_time_ms and status_code) and CREATE INDEX (optimizes read speeds for time-based and endpoint-based queries).
+**Terminal 1: Start the Data Engine**
+```bash
+cd data-engine
+source venv/bin/activate
+python ingestor.py
+```
 
-⚙️ Data Engine Tier
-data-engine/ingestor.py
+**Terminal 2: Start the Backend API**
+```bash
+cd backend
+npm run dev
+```
+*(The server will start on http://localhost:5001)*
 
-Role: Acts as the simulated network environment.
+**Terminal 3: Start the Frontend Application**
+```bash
+cd frontend
+npm run dev
+```
+*(The application will be accessible at http://localhost:5173 or the URL provided by Vite)*
 
-Main Logic/Functions: Uses a while True: loop to continuously generate mock traffic. It utilizes database connector libraries (like psycopg2) to execute cursor.execute() and connection.commit() to write the raw telemetry to PostgreSQL.
+## API Usage Examples
 
-🌐 Backend API Tier (Node.js)
-backend/config/db.js
+**Get Summary Metrics:**
+```bash
+curl -X GET http://localhost:5001/api/analytics/summary
+```
+**Response:**
+```json
+[
+  {
+    "endpoint": "/api/payment",
+    "total_requests": 1500,
+    "average_latency_ms": 125.4,
+    "error_count": 12
+  }
+]
+```
 
-Role: Manages the connection to PostgreSQL securely.
+**Get Time-series Data:**
+```bash
+curl -X GET http://localhost:5001/api/analytics/timeseries
+```
+**Response:**
+```json
+[
+  {
+    "time_bucket": "2023-10-27T10:00:00.000Z",
+    "avg_latency": 110.5,
+    "errors": 2
+  }
+]
+```
 
-Main Functions: new Pool() initializes a pool of reusable database connections. pool.query('SELECT 1') tests the connection on startup to ensure the backend doesn't silently fail.
+## Contributing
+Contributions are welcome! Please feel free to submit a Pull Request.
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
-backend/routes/analytics.js
-
-Role: The brain of the API. It holds the business logic and SQL algorithms.
-
-Main Functions:
-
-router.get('/summary'): Executes the SQL query to calculate total requests, average latency, and error counts grouped by endpoint.
-
-router.get('/timeseries'): Executes the SQL query using DATE_TRUNC to group the raw data into 1-minute chronological buckets for the line chart.
-
-backend/server.js
-
-Role: The entry point that boots the Express web server.
-
-Main Functions: app.use(cors()) applies security headers allowing React to talk to Node. app.listen() binds the server to port 5001.
-
-💻 Frontend Tier (React)
-frontend/src/api/fetchMetrics.js
-
-Role: The dedicated HTTP client. It abstracts all network logic away from the UI.
-
-Main Functions: axios.get() sends asynchronous requests to the Node.js API to fetch the summary and timeseries JSON arrays.
-
-frontend/src/components/MetricsChart.jsx
-
-Role: Visualizes the chronological health of the network.
-
-Main Functions: Uses a useEffect hook with setInterval() to trigger the API fetch every 5 seconds. It utilizes <LineChart>, <XAxis>, and <Line> components from Recharts to draw the live latency and error data.
-
-frontend/src/App.jsx
-
-Role: The master layout and state manager.
-
-Main Functions: Holds the metrics state for the table. Maps over the API data using {metrics.map()} to dynamically render the <tr> and <td> HTML elements for the summary table. Applies conditional formatting (making text red if errors are > 0).
+## License
+Distributed under the MIT License. See `LICENSE` for more information.
